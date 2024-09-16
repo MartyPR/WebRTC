@@ -10,7 +10,7 @@
     <script>
         const video = document.getElementById('video');
 
-        async function start() {
+        function start() {
                 var config = {
                     sdpSemantics: 'unified-plan'
                 };
@@ -25,9 +25,6 @@
                         //document.getElementById('audio').srcObject = evt.streams[0];
                     }
                 });
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-
             pc.addTransceiver('video', { direction: 'recvonly' });
 
             return pc.createOffer().then((offer) => {
@@ -53,7 +50,7 @@
             });
         }
 
-        start();
+        //start();
     </script>
 </body>
 </html>

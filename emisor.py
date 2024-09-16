@@ -1,57 +1,37 @@
-import socket
-import json
 import asyncio
+import json
+import aiohttp
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaPlayer
 
-async def iniciar_captura():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('localhost', 9999))
-    server_socket.listen(1)
-
-    while True:
-        connection, _ = server_socket.accept()
-        try:
-            data = connection.recv(4096)
-            if data:
-                try:
-                    sdp_message = json.loads(data.decode('utf-8'))
-                    await manejar_sdp(sdp_message)
-                except json.JSONDecodeError:
-                    print("Error al decodificar JSON")
-        except Exception as e:
-            print(f"Error en la conexión: {e}")
-        finally:
-            connection.close()
-
-async def manejar_sdp(sdp_message):
+async def main():
+    # Crear conexión peer-to-peer
     pc = RTCPeerConnection()
 
-    @pc.on("iceconnectionstatechange")
-    async def on_iceconnectionstatechange():
-        if pc.iceConnectionState == "failed":
-            await pc.close()
-
     # Captura de pantalla usando MediaPlayer
-    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "30"})
+    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "5"})
     pc.addTrack(player.video)
 
-    offer = RTCSessionDescription(sdp=sdp_message['sdp'], type=sdp_message['type'])
+    # Crear oferta
+    offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
 
-    # Asegúrate de que la conexión esté en un estado adecuado para manejar la oferta
-    if pc.signalingState == 'stable':
-        print("La conexión ya está estable, asegurando que la oferta se maneje correctamente.")
-        return
+    # Enviar la oferta al servidor remoto (cambiar URL por la IP/host de tu servidor)
+    async with aiohttp.ClientSession() as session:
+        async with session.post('http://localhost:8080/screen_offer', json={
+            "sdp": pc.localDescription.sdp,
+            "type": pc.localDescription.type
+        }) as response:
+            if response.status != 200:
+                raise Exception(f"Error en el servidor: {response.status}")
+            data = await response.json()
 
-    # Configura la oferta y responde
-    if pc.signalingState == 'have-remote-offer':
-        await pc.setRemoteDescription(offer)
-        answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-    else:
-        print("Estado de señalización inesperado:", pc.signalingState)
+    # Configurar la respuesta del servidor remoto
+    answer = RTCSessionDescription(sdp=data['sdp'], type=data['type'])
+    await pc.setRemoteDescription(answer)
 
-    print("Emisor listo y capturando pantalla...")
+    # Mantener la conexión abierta
+    await asyncio.sleep(3600)  # Mantener activo por 1 hora (ajustable)
 
-if __name__ == "__main__":
-    asyncio.run(iniciar_captura())
+if __name__ == '__main__':
+    asyncio.run(main())
