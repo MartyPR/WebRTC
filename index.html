@@ -1,73 +1,107 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>WebRTC Screen Share</title>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Pantalla Compartida</h1>
-    <video id="video" autoplay playsinline style="width: 100%;"></video>
+    <video id="video" autoplay playsinline style="width: 100%"></video>
     <button id="start" onclick="start()">Start</button>
     <button id="restart" onclick="restartEmitter()">Reiniciar Emisor</button>
 
     <script>
-        const video = document.getElementById('video');
-        let ws;
+        
+      const video = document.getElementById("video");
 
-        function start() {
-            var config = {
-                sdpSemantics: 'unified-plan'
-            };
-            config.iceServers = [{ urls: ['stun:stun.l.google.com:19302'] }];
+      let ws;
+      start();
 
-            const pc = new RTCPeerConnection(config);
+      function start() {
+        const pc = new RTCPeerConnection({
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            {
+              urls: "turn:your-turn-server.com",
+              username: "user",
+              credential: "pass",
+            },
+          ],
+          // Ajusta los parámetros de ancho de banda según sea necesario
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true,
+        });
 
-            pc.addEventListener('track', (evt) => {
-                if (evt.track.kind === 'video') {
-                    video.srcObject = evt.streams[0];
-                }
+        pc.addEventListener("track", (evt) => {
+          if (evt.track.kind === "video") {
+            video.srcObject = evt.streams[0];
+
+            // **Esperar hasta que la pista de video esté lista para agregar las restricciones**
+           /* const videoSender = pc
+              .getSenders()
+              .find((s) => s.track && s.track.kind === "video");
+            if (videoSender) {
+              const parameters = videoSender.getParameters();
+              parameters.encodings = [
+                {
+                  rid: "low",
+                  maxBitrate: 500 * 1000, // Limitar a 500 kbps
+                  maxFramerate: 15, // Limitar a 15 FPS
+                  scaleResolutionDownBy: 2.0, // Reducir la resolución a la mitad
+                },
+              ];
+              videoSender.setParameters(parameters);
+              console.log("Calidad de video ajustada");
+            }*/
+          }
+        });
+        pc.addTransceiver("video", { direction: "recvonly" });
+
+        ws = new WebSocket("ws://localhost:8080/offer");
+        console.log("connecting...");
+
+        ws.onopen = () => {
+          pc.createOffer()
+            .then((offer) => {
+              return pc.setLocalDescription(offer);
+            })
+            .then(() => {
+              ws.send(
+                JSON.stringify({
+                  sdp: pc.localDescription.sdp,
+                  type: pc.localDescription.type,
+                })
+              );
             });
-
-            pc.addTransceiver('video', { direction: 'recvonly' });
-
-            ws = new WebSocket('ws://localhost:8080/offer');
-
-            ws.onopen = () => {
-                pc.createOffer().then((offer) => {
-                    return pc.setLocalDescription(offer);
-                }).then(() => {
-                    ws.send(JSON.stringify({
-                        sdp: pc.localDescription.sdp,
-                        type: pc.localDescription.type
-                    }));
-                });
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                pc.setRemoteDescription(new RTCSessionDescription({
-                    sdp: data.sdp,
-                    type: data.type
-                }));
-            };
-
-            ws.onerror = (error) => {
-                console.error("WebSocket error:", error);
-            };
-        }
-
-        // Evento para detectar cuando la página se cierra o recarga
-        window.onbeforeunload = function() {
-            ws.send(JSON.stringify({ action: "restart_emitter" }));
         };
 
-        // Función para reiniciar el emisor manualmente con un botón
-        function restartEmitter() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ action: "restart_emitter" }));
-            } else {
-                console.error("WebSocket no está conectado.");
-            }
+        ws.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          pc.setRemoteDescription(
+            new RTCSessionDescription({
+              sdp: data.sdp,
+              type: data.type,
+            })
+          );
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+      }
+
+      // Evento para detectar cuando la página se cierra o recarga
+      window.onbeforeunload = function () {
+        ws.send(JSON.stringify({ action: "restart_emitter" }));
+      };
+
+      // Función para reiniciar el emisor manualmente con un botón
+      function restartEmitter() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: "restart_emitter" }));
+        } else {
+          console.error("WebSocket no está conectado.");
         }
+      }
     </script>
-</body>
+  </body>
 </html>

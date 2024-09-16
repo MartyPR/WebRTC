@@ -67,8 +67,32 @@ async def on_shutdown(app):
     pcs.clear()
 
 if __name__=="__main__":    
+    app = web.Application()
+    app.router.add_get('/', index)
+
+    # Manejar cierre del servidor
+    app.on_shutdown.append(on_shutdown)
+
+    # Correr el servidor HTTP con aiohttp en el puerto 8080
+    web_runner = web.AppRunner(app)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(web_runner.setup())
+    site = web.TCPSite(web_runner, '0.0.0.0', 8081)
+    loop.run_until_complete(site.start())
+
+    # Iniciar servidor WebSocket en el puerto 8081
     start_server = websockets.serve(signaling, "0.0.0.0", 8080)
-    asyncio.get_event_loop().run_until_complete(start_server)
-    print("WebSocket signaling server started at ws://localhost:8080")
-    asyncio.get_event_loop().run_forever()
+    loop.run_until_complete(start_server)
+
+    print("Servidor HTTP en http://0.0.0.0:8080")
+    print("Servidor WebSocket en ws://0.0.0.0:8081")
+
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        loop.run_until_complete(web_runner.cleanup())
+        loop.run_until_complete(start_server.wait_closed())
+        loop.close()
 
