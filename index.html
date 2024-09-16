@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Screen Share</title>
+</head>
+<body>
+    <h1>Pantalla Compartida</h1>
+    <video id="video" autoplay playsinline style="width: 100%;"></video>
+    <button id="start" onclick=start()>start</button>
+    <script>
+        const video = document.getElementById('video');
+
+        async function start() {
+                var config = {
+                    sdpSemantics: 'unified-plan'
+                };
+                config.iceServers = [{ urls: ['stun:stun.l.google.com:19302'] }];
+
+                const pc = new RTCPeerConnection(config);
+
+                pc.addEventListener('track', (evt) => {
+                    if (evt.track.kind == 'video') {
+                        document.getElementById('video').srcObject = evt.streams[0];
+                    } else {
+                        //document.getElementById('audio').srcObject = evt.streams[0];
+                    }
+                });
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            pc.addTransceiver('video', { direction: 'recvonly' });
+
+            return pc.createOffer().then((offer) => {
+                return pc.setLocalDescription(offer);
+            }).then(() => {
+                var offer = pc.localDescription;
+                return fetch('/offer', {
+                    body: JSON.stringify({
+                        sdp: offer.sdp,
+                        type: offer.type,
+                    }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    method: 'POST'
+                });
+            }).then((response) => {
+                return response.json();
+            }).then((answer) => {
+                return pc.setRemoteDescription(answer);
+            }).catch((e) => {
+                alert(e);
+            });
+        }
+
+        start();
+    </script>
+</body>
+</html>

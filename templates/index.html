@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Screen Share</title>
+</head>
+<body>
+    <video id="video" autoplay playsinline></video>
+    <script>
+        const pc = new RTCPeerConnection();
+
+        // Al recibir una pista, enlazarla al elemento video
+        pc.ontrack = function(event) {
+            document.getElementById('video').srcObject = event.streams[0];
+        };
+
+        async function negotiate() {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Enviar la oferta al servidor
+            const response = await fetch('/offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sdp: pc.localDescription.sdp,
+                    type: pc.localDescription.type
+                })
+            });
+
+            const answer = await response.json();
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+
+        // Iniciar la negociación WebRTC
+        negotiate();
+    </script>
+</body>
+</html>
