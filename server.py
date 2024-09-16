@@ -1,8 +1,8 @@
 import asyncio
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.contrib.media import MediaPlayer
 from aiohttp import web
 import json
+import socket
 
 pcs = set()
 
@@ -23,13 +23,23 @@ async def offer(request):
             await pc.close()
             pcs.discard(pc)
 
-    # Captura de pantalla usando MediaPlayer
-    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "30"})
-    pc.addTrack(player.video)
+    # Comunicación con el emisor
+    player_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    player_socket.connect(('localhost', 9999))  # Conecta al emisor
+
+    pc.addTransceiver('video', direction='recvonly')
 
     await pc.setRemoteDescription(offer)
     answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
+
+    # Enviar la SDP al emisor para la configuración del WebRTC
+    sdp_message = {
+        'sdp': pc.localDescription.sdp,
+        'type': pc.localDescription.type
+    }
+    player_socket.sendall(json.dumps(sdp_message).encode('utf-8'))
+    player_socket.close()
 
     return web.Response(
         content_type="application/json",
