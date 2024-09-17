@@ -18,7 +18,6 @@ async def signaling(websocket, path):
     try:
         async for message in websocket:
             params = json.loads(message)
-            print(path)
             if "sdp" in params:
                 offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
                 pc = RTCPeerConnection()
@@ -48,6 +47,7 @@ async def signaling(websocket, path):
                     "sdp": pc.localDescription.sdp,
                     "type": pc.localDescription.type
                 }))
+                print(f"Answer sent: {pc.localDescription}")
 
             # Manejando reinicio del emisor
             elif "action" in params and params["action"] == "restart_emitter":
@@ -77,7 +77,7 @@ if __name__=="__main__":
     web_runner = web.AppRunner(app)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(web_runner.setup())
-    site = web.TCPSite(web_runner, '0.0.0.0', 8081)
+    site = web.TCPSite(web_runner, '0.0.0.0', 5000)
     loop.run_until_complete(site.start())
 
     # Iniciar servidor WebSocket en el puerto 8081

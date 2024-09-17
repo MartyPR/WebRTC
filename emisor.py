@@ -7,7 +7,7 @@ import websockets
 
 async def main():
     pc = RTCPeerConnection()
-    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "25"})
+    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "30"})
     pc.addTrack(player.video)
 
     offer = await pc.createOffer()
