@@ -4,6 +4,7 @@ from aiohttp import web
 import json
 import os
 import websockets
+import time
 
 emitter_websocket = {}
 pcs = set()
@@ -117,3 +118,12 @@ if __name__=="__main__":
     print("Servidor WebSocket en ws://0.0.0.0:8000")
 
     loop.run_forever()
+    
+if __name__ == "__main__":
+    while True:
+        try:
+            start_server()
+        except Exception as e:
+            print(f"El servidor falló con el error: {e}")
+            print("Reiniciando en 5 segundos...")
+            time.sleep(5)

@@ -62,7 +62,6 @@
       background-color: #2e7d32;
       transform: scale(1);
     }
-
     #controls {
       display: flex;
       flex-direction: column;
@@ -70,20 +69,34 @@
       margin-bottom: 20px;
     }
 
+    #controls div{
+      background-color: #1e1e1e;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        margin: 15px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        width: 300px;
+    }
+    
+    #controls div:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+    }
+
     #videoContainer {
       display: contents;
       justify-content: center;
-      
+      align-items: center;
       width: 100%;
-      max-width: 1200px;
     }
 
     #videoScreen {
-      width: 75%;
+      width: 80%;
     }
 
     #videoCamera {
-      width: 75%;
+      width: 80%;
     }
 
     @media (min-width: 768px) {
@@ -95,30 +108,33 @@
         display: flex;
       }
       #videoScreen {
-        width: 40%;
+        width: 80%;
       }
   
       #videoCamera {
-        width: 70%;
+        width: 100%;
+      }
+      #controls div {
+        width: 200px;
       }
     }
     
   </style>
 </head>
 <body>
-  <h1>Pantalla y Cámara Compartida</h1>
+  <h1>WebRTC </h1>
 
   <div id="controls">
     <div>
-      <h2>Controles del Emisor 1</h2>
-      <button id="start1" onclick="start('emisor_1')">Start Emisor 1</button>
-      <button id="restart1" onclick="restartEmitter('emisor_1')">Reiniciar Emisor 1</button>
+      <h2>Emisor 1</h2>
+      <button id="start1" onclick="start('emisor_1')">Start</button>
+      <button id="restart1" onclick="restartEmitter('emisor_1')">Reiniciar </button>
     </div>
 
     <div>
-      <h2>Controles del Emisor 2</h2>
-      <button id="start2" onclick="start('emisor_2')">Start Emisor 2</button>
-      <button id="restart2" onclick="restartEmitter('emisor_2')">Reiniciar Emisor 2</button>
+      <h2>Emisor 2</h2>
+      <button id="start2" onclick="start('emisor_2')">Start</button>
+      <button id="restart2" onclick="restartEmitter('emisor_2')">Reiniciar</button>
     </div>
   </div>
 
