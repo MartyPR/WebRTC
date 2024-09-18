@@ -3,19 +3,118 @@
   <head>
     <title>WebRTC Screen and Camera Share</title>
   </head>
-  <body>
-    <h1>Pantalla y Cámara Compartida</h1>
-    
-    <video id="videoScreen" autoplay playsinline style="width: 50%"></video>
-    <video id="videoCamera" autoplay playsinline style="width: 50%"></video>
+  <style>
+    body {
+      font-family: "Arial", sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+    }
 
-    <h2>Controles del Emisor 1</h2>
-    <button id="start1" onclick="start('emisor_1')">Start Emisor 1</button>
-    <button id="restart1" onclick="restartEmitter('emisor_1')">Reiniciar Emisor 1</button>
+    h1 {
+      color: #a5d6a7;
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
 
-    <h2>Controles del Emisor 2</h2>
-    <button id="start2" onclick="start('emisor_2')">Start Emisor 2</button>
-    <button id="restart2" onclick="restartEmitter('emisor_2')">Reiniciar Emisor 2</button>
+    h2 {
+      color: #81c784;
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+    }
+
+    video {
+      border: 2px solid #388e3c;
+      border-radius: 10px;
+      margin: 10px;
+      background-color: #1b1b1b;
+      transition: box-shadow 0.3s;
+    }
+
+    video:hover {
+      box-shadow: 0 0 15px #388e3c;
+    }
+
+    button {
+      background-color: #388e3c;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      margin: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    button:hover {
+      background-color: #4caf50;
+      transform: scale(1.05);
+    }
+
+    button:active {
+      background-color: #2e7d32;
+      transform: scale(1);
+    }
+
+    #controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    #videoContainer {
+      display: flex;
+      justify-content: center;
+      
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    #videoScreen {
+      width: 40%;
+    }
+
+    #videoCamera {
+      width: 70%;
+    }
+
+    @media (min-width: 768px) {
+      #controls {
+        flex-direction: row;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Pantalla y Cámara Compartida</h1>
+
+  <div id="controls">
+    <div>
+      <h2>Controles del Emisor 1</h2>
+      <button id="start1" onclick="start('emisor_1')">Start Emisor 1</button>
+      <button id="restart1" onclick="restartEmitter('emisor_1')">Reiniciar Emisor 1</button>
+    </div>
+
+    <div>
+      <h2>Controles del Emisor 2</h2>
+      <button id="start2" onclick="start('emisor_2')">Start Emisor 2</button>
+      <button id="restart2" onclick="restartEmitter('emisor_2')">Reiniciar Emisor 2</button>
+    </div>
+  </div>
+
+  <div id="videoContainer">
+    <video id="videoScreen" autoplay playsinline></video>
+    <video id="videoCamera" autoplay playsinline></video>
+  </div>
 
     <script>
       const videoScreen = document.getElementById("videoScreen");
