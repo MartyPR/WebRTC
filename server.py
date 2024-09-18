@@ -5,7 +5,7 @@ import json
 import os
 import websockets
 
-emitter_websocket = None
+emitter_websocket = {}
 pcs = set()
 emitter_pc = None
 emitter_pcs = {} 
@@ -36,8 +36,9 @@ async def signaling(websocket, path):
                             await pc.close()
                             pcs.discard(pc)
                             emitter_pcs.pop(emitter_id, None)
-
+                    
                     emitter_pcs[emitter_id] = pc  # Asignar la conexión al emisor correcto
+                    emitter_websocket[emitter_id] = websocket
                     print(f"Emisor {emitter_id} conectado")
 
                     await pc.setRemoteDescription(offer)
@@ -55,9 +56,11 @@ async def signaling(websocket, path):
             async for message in websocket:
                 params = json.loads(message)
                 emitter_id = params.get("emitter_id", None)  # Se obtiene el emitter_id del cliente
-
-                if emitter_id and emitter_id in emitter_pcs:
+                
+                if "sdp" in params and emitter_id and emitter_id in emitter_pcs:
+                    
                     offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
+                    
                     pc = RTCPeerConnection()
                     pcs.add(pc)
 
@@ -72,16 +75,22 @@ async def signaling(websocket, path):
                             pc.addTrack(transceiver.receiver.track)
 
                     await pc.setRemoteDescription(offer)
+                    
                     answer = await pc.createAnswer()
                     await pc.setLocalDescription(answer)
-
+                    
                     await websocket.send(json.dumps({
                         "sdp": pc.localDescription.sdp,
                         "type": pc.localDescription.type
                     }))
                     print(f"Cliente conectado al emisor {emitter_id}")
                 else:
-                    print("Emisor no encontrado o no conectado")
+                    print(f"No se encontró 'sdp' o 'emitter_id'. Parámetros: {params}")
+                if "action" in params and params["action"] == "restart_emitter" and emitter_id:
+                    print("part r")
+                    if emitter_websocket.get(emitter_id):
+                        print(f"Reiniciando emisor {emitter_id}...")
+                        await emitter_websocket[emitter_id].send(json.dumps({"action": "restart"}))
         except Exception as e:
             print(f"Error con el cliente: {e}")
 

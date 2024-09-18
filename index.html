@@ -71,7 +71,7 @@
     }
 
     #videoContainer {
-      display: flex;
+      display: contents;
       justify-content: center;
       
       width: 100%;
@@ -79,11 +79,11 @@
     }
 
     #videoScreen {
-      width: 40%;
+      width: 75%;
     }
 
     #videoCamera {
-      width: 70%;
+      width: 75%;
     }
 
     @media (min-width: 768px) {
@@ -91,7 +91,18 @@
         flex-direction: row;
         justify-content: center;
       }
+      #videoContainer{
+        display: flex;
+      }
+      #videoScreen {
+        width: 40%;
+      }
+  
+      #videoCamera {
+        width: 70%;
+      }
     }
+    
   </style>
 </head>
 <body>
@@ -157,7 +168,7 @@
           }
         };
       }
-
+      
       function start(emitterId) {
         pc = new RTCPeerConnection({
           iceServers: [
