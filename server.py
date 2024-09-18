@@ -8,7 +8,10 @@ import websockets
 emitter_websocket = None
 pcs = set()
 emitter_pc = None
+emitter_pcs = {} 
+
 ROOT = os.path.dirname(__file__)
+
 async def index(request):
     content = open(os.path.join(ROOT, "index.html"), "r").read()
     return web.Response(content_type="text/html", text=content)
@@ -20,7 +23,9 @@ async def signaling(websocket, path):
         try:
             async for message in websocket:
                 params = json.loads(message)
-                if "sdp" in params:
+                emitter_id = params.get("emitter_id", None)
+
+                if emitter_id and "sdp" in params:
                     offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
                     pc = RTCPeerConnection()
                     pcs.add(pc)
@@ -30,10 +35,10 @@ async def signaling(websocket, path):
                         if pc.iceConnectionState == "failed":
                             await pc.close()
                             pcs.discard(pc)
+                            emitter_pcs.pop(emitter_id, None)
 
-                    emitter_pc = pc
-                    emitter_websocket = websocket
-                    print("Emisor conectado")
+                    emitter_pcs[emitter_id] = pc  # Asignar la conexión al emisor correcto
+                    print(f"Emisor {emitter_id} conectado")
 
                     await pc.setRemoteDescription(offer)
                     answer = await pc.createAnswer()
@@ -43,26 +48,26 @@ async def signaling(websocket, path):
                         "sdp": pc.localDescription.sdp,
                         "type": pc.localDescription.type
                     }))
-                else:
-                    print("Formato SDP inválido para el emisor")
         except Exception as e:
             print(f"Error con el emisor: {e}")
     elif path == "/viewer_offer":
         try:
             async for message in websocket:
                 params = json.loads(message)
-                if "sdp" in params and emitter_pc is not None:
+                emitter_id = params.get("emitter_id", None)  # Se obtiene el emitter_id del cliente
+
+                if emitter_id and emitter_id in emitter_pcs:
                     offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
                     pc = RTCPeerConnection()
                     pcs.add(pc)
-                    
+
                     @pc.on("iceconnectionstatechange")
                     async def on_iceconnectionstatechange():
                         if pc.iceConnectionState == "failed":
                             await pc.close()
                             pcs.discard(pc)
 
-                    for transceiver in emitter_pc.getTransceivers():
+                    for transceiver in emitter_pcs[emitter_id].getTransceivers():
                         if transceiver.receiver and transceiver.receiver.track:
                             pc.addTrack(transceiver.receiver.track)
 
@@ -74,11 +79,9 @@ async def signaling(websocket, path):
                         "sdp": pc.localDescription.sdp,
                         "type": pc.localDescription.type
                     }))
-                    print("Cliente conectado")
-                elif "action" in params and params["action"] == "restart_emitter":
-                    if emitter_websocket:
-                        print("Reiniciando emisor...")
-                        await emitter_websocket.send(json.dumps({"action": "restart"}))
+                    print(f"Cliente conectado al emisor {emitter_id}")
+                else:
+                    print("Emisor no encontrado o no conectado")
         except Exception as e:
             print(f"Error con el cliente: {e}")
 

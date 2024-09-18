@@ -5,10 +5,17 @@
   </head>
   <body>
     <h1>Pantalla y Cámara Compartida</h1>
+    
     <video id="videoScreen" autoplay playsinline style="width: 50%"></video>
     <video id="videoCamera" autoplay playsinline style="width: 50%"></video>
-    <button id="start" onclick="start()">Start</button>
-    <button id="restart" onclick="restartEmitter()">Reiniciar Emisor</button>
+
+    <h2>Controles del Emisor 1</h2>
+    <button id="start1" onclick="start('emisor_1')">Start Emisor 1</button>
+    <button id="restart1" onclick="restartEmitter('emisor_1')">Reiniciar Emisor 1</button>
+
+    <h2>Controles del Emisor 2</h2>
+    <button id="start2" onclick="start('emisor_2')">Start Emisor 2</button>
+    <button id="restart2" onclick="restartEmitter('emisor_2')">Reiniciar Emisor 2</button>
 
     <script>
       const videoScreen = document.getElementById("videoScreen");
@@ -17,7 +24,7 @@
       let pc;
       let idVideo;
 
-      function connectWebSocket() {
+      function connectWebSocket(emitterId) {
         ws = new WebSocket("ws://localhost:8000/viewer_offer");
         console.log("Conectando como cliente...");
 
@@ -29,6 +36,7 @@
               JSON.stringify({
                 sdp: pc.localDescription.sdp,
                 type: pc.localDescription.type,
+                emitter_id: emitterId,  // Se envía el emitter_id seleccionado
               })
             );
           } catch (err) {
@@ -51,7 +59,7 @@
         };
       }
 
-      function start() {
+      function start(emitterId) {
         pc = new RTCPeerConnection({
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -85,12 +93,12 @@
         pc.addTransceiver("video", { direction: "recvonly" });
         pc.addTransceiver("video", { direction: "recvonly" });
 
-        connectWebSocket();
+        connectWebSocket(emitterId);  // Se conecta al WebSocket usando el emitter_id
       }
 
-      function restartEmitter() {
+      function restartEmitter(emitterId) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ action: "restart_emitter" }));
+          ws.send(JSON.stringify({ action: "restart_emitter", emitter_id: emitterId }));
         } else {
           console.error("WebSocket no está conectado.");
         }

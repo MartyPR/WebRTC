@@ -13,7 +13,7 @@ async def main():
         screen=player_screen.video
         screen.kind="video"
         screen.label="asd"
-        player_camera = MediaPlayer("video=USB2.0 PC CAMERA", format="dshow")  # Cambia el nombre de la cámara según tu sistema
+        player_camera = MediaPlayer("desktop", format="gdigrab", options={"framerate": "30", "video_size":"640x360"})  # Cambia el nombre de la cámara según tu sistema
         camera=player_camera.video
         camera.kind="video"
         camera.label="asd"
@@ -29,7 +29,7 @@ async def main():
     await pc.setLocalDescription(offer)
 
     async with websockets.connect('ws://localhost:8000/screen_offer') as websocket:
-        emitter_id = "emisor_1"  # Identificador para el segundo emisor
+        emitter_id = "emisor_2"  # Identificador para el segundo emisor
         await websocket.send(json.dumps({
             "sdp": pc.localDescription.sdp,
             "type": pc.localDescription.type,
