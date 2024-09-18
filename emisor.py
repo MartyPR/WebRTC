@@ -6,9 +6,17 @@ from aiortc.contrib.media import MediaPlayer
 import websockets
 
 async def main():
+    
     pc = RTCPeerConnection()
-    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "30"})
+    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "60"})
     pc.addTrack(player.video)
+    
+    # player_camera = MediaPlayer(
+    #                 "video=Integrated Camera", format="dshow", options={"framerate": "60"}
+    #             )
+
+    # pc.addTrack(player_camera.video)
+
 
     offer = await pc.createOffer()
     await pc.setLocalDescription(offer)

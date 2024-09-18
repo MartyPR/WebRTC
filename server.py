@@ -5,61 +5,88 @@ import json
 import os
 import websockets
 
-pcs = set()
-emitter_pc=None
+
 emitter_websocket = None
 
+
+ROOT = os.path.dirname(__file__)
+pcs = set()
+emitter_pc=None
+
 async def index(request):
-    content = open('index.html', 'r').read()
-    return web.Response(content_type='text/html', text=content)
+    content = open(os.path.join(ROOT, "index.html"), "r").read()
+    return web.Response(content_type="text/html", text=content)
 
 async def signaling(websocket, path):
     global emitter_pc, emitter_websocket
-    try:
-        async for message in websocket:
-            params = json.loads(message)
-            if "sdp" in params:
-                offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
-                pc = RTCPeerConnection()
-                pcs.add(pc)
 
-                @pc.on("iceconnectionstatechange")
-                async def on_iceconnectionstatechange():
-                    if pc.iceConnectionState == "failed":
-                        await pc.close()
-                        pcs.discard(pc)
+    if path == "/screen_offer":  # Ruta para emisores
+        try:
+            async for message in websocket:
+                params = json.loads(message)
+                if "sdp" in params:
+                    offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
+                    pc = RTCPeerConnection()
+                    pcs.add(pc)
 
-                if path == "/screen_offer":
+                    @pc.on("iceconnectionstatechange")
+                    async def on_iceconnectionstatechange():
+                        if pc.iceConnectionState == "failed":
+                            await pc.close()
+                            pcs.discard(pc)
+
                     emitter_pc = pc
                     emitter_websocket = websocket
                     print("Emisor conectado")
+
+                    await pc.setRemoteDescription(offer)
+                    answer = await pc.createAnswer()
+                    await pc.setLocalDescription(answer)
+
+                    await websocket.send(json.dumps({
+                        "sdp": pc.localDescription.sdp,
+                        "type": pc.localDescription.type
+                    }))
                 else:
-                    if emitter_pc:
-                        for track in emitter_pc.getTransceivers():
-                            pc.addTrack(track.receiver.track)
-                        print("Cliente conectado")
+                    print("Formato SDP inválido para el emisor")
+        except Exception as e:
+            print(f"Error con el emisor: {e}")
+            
+    elif path == "/viewer_offer":  # Ruta para los clientes
+        try:
+            async for message in websocket:
+                params = json.loads(message)
+                if "sdp" in params and emitter_pc is not None:
+                    offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
+                    pc = RTCPeerConnection()
+                    pcs.add(pc)
 
-                await pc.setRemoteDescription(offer)
-                answer = await pc.createAnswer()
-                await pc.setLocalDescription(answer)
+                    @pc.on("iceconnectionstatechange")
+                    async def on_iceconnectionstatechange():
+                        if pc.iceConnectionState == "failed":
+                            await pc.close()
+                            pcs.discard(pc)
 
-                await websocket.send(json.dumps({
-                    "sdp": pc.localDescription.sdp,
-                    "type": pc.localDescription.type
-                }))
-                print(f"Answer sent: {pc.localDescription}")
+                    # Conectar a la pista de video del emisor
+                    for transceiver in emitter_pc.getTransceivers():
+                        if transceiver.receiver and transceiver.receiver.track:
+                            pc.addTrack(transceiver.receiver.track)
 
-            # Manejando reinicio del emisor
-            elif "action" in params and params["action"] == "restart_emitter":
-                if emitter_websocket:
-                    print("Reiniciando emisor...")
-                    await emitter_websocket.send(json.dumps({"action": "restart"}))    
-            else:
-                print("Invalid SDP format")
-                
-    except Exception as e:
-        print(f"Error: {e}")            
-       
+                    await pc.setRemoteDescription(offer)
+                    answer = await pc.createAnswer()
+                    await pc.setLocalDescription(answer)
+
+                    await websocket.send(json.dumps({
+                        "sdp": pc.localDescription.sdp,
+                        "type": pc.localDescription.type
+                    }))
+                    print("Cliente conectado")
+                elif "action" in params and params["action"] == "restart_emitter":
+                    if emitter_websocket:
+                        print("Reiniciando emisor...")
+                        await emitter_websocket.send(json.dumps({"action": "restart"}))  
+        except Exception as e:
+            print(f"Error con el cliente: {e}")
 
 async def on_shutdown(app):
     coros = [pc.close() for pc in pcs]
@@ -84,15 +111,8 @@ if __name__=="__main__":
     start_server = websockets.serve(signaling, "0.0.0.0", 8080)
     loop.run_until_complete(start_server)
 
-    print("Servidor HTTP en http://0.0.0.0:8080")
+    print("Servidor HTTP en http://0.0.0.0:5000")
     print("Servidor WebSocket en ws://0.0.0.0:8081")
 
-    try:
-        loop.run_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.run_until_complete(web_runner.cleanup())
-        loop.run_until_complete(start_server.wait_closed())
-        loop.close()
-
+    loop.run_forever()
+    
