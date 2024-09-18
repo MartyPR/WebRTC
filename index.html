@@ -1,48 +1,54 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>WebRTC Screen Share</title>
+    <title>WebRTC Screen and Camera Share</title>
   </head>
   <body>
-    <h1>Pantalla Compartida</h1>
-    <video id="video" autoplay playsinline style="width: 100%"></video>
+    <h1>Pantalla y Cámara Compartida</h1>
+    <video id="videoScreen" autoplay playsinline style="width: 50%"></video>
+    <video id="videoCamera" autoplay playsinline style="width: 50%"></video>
     <button id="start" onclick="start()">Start</button>
     <button id="restart" onclick="restartEmitter()">Reiniciar Emisor</button>
 
     <script>
-      const video = document.getElementById("video");
+      const videoScreen = document.getElementById("videoScreen");
+      const videoCamera = document.getElementById("videoCamera");
       let ws;
       let pc;
+      let idVideo;
 
       function connectWebSocket() {
-        ws = new WebSocket("ws://localhost:8080/offer");
-        console.log("connecting...");
+        ws = new WebSocket("ws://localhost:8000/viewer_offer");
+        console.log("Conectando como cliente...");
 
-        ws.onopen = () => {
-          pc.createOffer()
-            .then((offer) => {
-              return pc.setLocalDescription(offer);
-            })
-            .then(() => {
-              ws.send(
-                JSON.stringify({
-                  sdp: pc.localDescription.sdp,
-                  type: pc.localDescription.type,
-                })
-              );
-            });
+        ws.onopen = async () => {
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(
+              JSON.stringify({
+                sdp: pc.localDescription.sdp,
+                type: pc.localDescription.type,
+              })
+            );
+          } catch (err) {
+            console.error("Error creando la oferta", err);
+          }
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
           const data = JSON.parse(event.data);
-          pc.setRemoteDescription(
-            new RTCSessionDescription({
-              sdp: data.sdp,
-              type: data.type,
-            })
-          );
+          if (data.sdp && data.type) {
+            await pc.setRemoteDescription(
+              new RTCSessionDescription({
+                sdp: data.sdp,
+                type: data.type,
+              })
+            );
+          } else {
+            console.log("Mensaje no reconocido:", data);
+          }
         };
-
       }
 
       function start() {
@@ -55,37 +61,33 @@
               credential: "pass",
             },
           ],
-          offerToReceiveAudio: false,
-          offerToReceiveVideo: true,
         });
 
         pc.addEventListener("track", (evt) => {
+          videoScreen.srcObject = evt.streams[0];
+          const track = event.track;
+          console.log("Track received:", evt.track);
           if (evt.track.kind === "video") {
-            video.srcObject = evt.streams[0];
+            if (!idVideo) {
+              console.log("screen");
+              console.log("Track received:", evt.track.id);
+              idVideo = evt.track.id;
+              videoScreen.srcObject = new MediaStream([track]);;
+            } else {
+              console.log("camera");
+              console.log("Track received:", evt.track.id);
+              idVideo = evt.track.id;
+              videoCamera.srcObject = new MediaStream([track]);;
+            }
           }
         });
 
         pc.addTransceiver("video", { direction: "recvonly" });
+        pc.addTransceiver("video", { direction: "recvonly" });
 
-        // Inicializar WebSocket
         connectWebSocket();
-
-        // Keep-alive ping cada 10 segundos
-         // Enviar ping cada 10 segundos
       }
 
-      // Evento para detectar cuando la página se cierra o recarga
-      window.onbeforeunload = function () {
-        if (pc) {
-          pc.close();
-        }
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ action: "restart_emitter" }));
-          ws.close();
-        }
-      };
-
-      // Función para reiniciar el emisor manualmente con un botón
       function restartEmitter() {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ action: "restart_emitter" }));

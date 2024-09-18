@@ -5,14 +5,10 @@ import json
 import os
 import websockets
 
-
 emitter_websocket = None
-
-
-ROOT = os.path.dirname(__file__)
 pcs = set()
-emitter_pc=None
-
+emitter_pc = None
+ROOT = os.path.dirname(__file__)
 async def index(request):
     content = open(os.path.join(ROOT, "index.html"), "r").read()
     return web.Response(content_type="text/html", text=content)
@@ -20,7 +16,7 @@ async def index(request):
 async def signaling(websocket, path):
     global emitter_pc, emitter_websocket
 
-    if path == "/screen_offer":  # Ruta para emisores
+    if path == "/screen_offer":
         try:
             async for message in websocket:
                 params = json.loads(message)
@@ -51,8 +47,7 @@ async def signaling(websocket, path):
                     print("Formato SDP inválido para el emisor")
         except Exception as e:
             print(f"Error con el emisor: {e}")
-            
-    elif path == "/viewer_offer":  # Ruta para los clientes
+    elif path == "/viewer_offer":
         try:
             async for message in websocket:
                 params = json.loads(message)
@@ -60,14 +55,13 @@ async def signaling(websocket, path):
                     offer = RTCSessionDescription(sdp=params['sdp'], type=params['type'])
                     pc = RTCPeerConnection()
                     pcs.add(pc)
-
+                    
                     @pc.on("iceconnectionstatechange")
                     async def on_iceconnectionstatechange():
                         if pc.iceConnectionState == "failed":
                             await pc.close()
                             pcs.discard(pc)
 
-                    # Conectar a la pista de video del emisor
                     for transceiver in emitter_pc.getTransceivers():
                         if transceiver.receiver and transceiver.receiver.track:
                             pc.addTrack(transceiver.receiver.track)
@@ -84,7 +78,7 @@ async def signaling(websocket, path):
                 elif "action" in params and params["action"] == "restart_emitter":
                     if emitter_websocket:
                         print("Reiniciando emisor...")
-                        await emitter_websocket.send(json.dumps({"action": "restart"}))  
+                        await emitter_websocket.send(json.dumps({"action": "restart"}))
         except Exception as e:
             print(f"Error con el cliente: {e}")
 
@@ -93,26 +87,21 @@ async def on_shutdown(app):
     await asyncio.gather(*coros)
     pcs.clear()
 
-if __name__=="__main__":    
+if __name__=="__main__":
     app = web.Application()
     app.router.add_get('/', index)
-
-    # Manejar cierre del servidor
     app.on_shutdown.append(on_shutdown)
 
-    # Correr el servidor HTTP con aiohttp en el puerto 8080
     web_runner = web.AppRunner(app)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(web_runner.setup())
     site = web.TCPSite(web_runner, '0.0.0.0', 5000)
     loop.run_until_complete(site.start())
 
-    # Iniciar servidor WebSocket en el puerto 8081
-    start_server = websockets.serve(signaling, "0.0.0.0", 8080)
+    start_server = websockets.serve(signaling, "0.0.0.0", 8000)
     loop.run_until_complete(start_server)
 
     print("Servidor HTTP en http://0.0.0.0:5000")
-    print("Servidor WebSocket en ws://0.0.0.0:8081")
+    print("Servidor WebSocket en ws://0.0.0.0:8000")
 
     loop.run_forever()
-    

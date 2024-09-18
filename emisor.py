@@ -6,27 +6,33 @@ from aiortc.contrib.media import MediaPlayer
 import websockets
 
 async def main():
-    
     pc = RTCPeerConnection()
-    player = MediaPlayer("desktop", format="gdigrab", options={"framerate": "60"})
-    pc.addTrack(player.video)
+    try:
+        # Crear dos MediaPlayer, uno para la pantalla y otro para la cámara
+        player_screen = MediaPlayer("desktop", format="gdigrab", options={"framerate": "30"})
+        screen=player_screen.video
+        screen.kind="video"
+        screen.label="asd"
+        player_camera = MediaPlayer("video=USB2.0 PC CAMERA", format="dshow")  # Cambia el nombre de la cámara según tu sistema
+        camera=player_camera.video
+        camera.kind="video"
+        camera.label="asd"
+        # Añadir ambas pistas al RTCPeerConnection
+        pc.addTrack(screen)
+        pc.addTrack(camera)
+        print("Captura de pantalla y cámara")
     
-    # player_camera = MediaPlayer(
-    #                 "video=Integrated Camera", format="dshow", options={"framerate": "60"}
-    #             )
-
-    # pc.addTrack(player_camera.video)
-
-
+    except Exception as e:
+        print(f"Error al configurar la captura: {e}")
+    
     offer = await pc.createOffer()
     await pc.setLocalDescription(offer)
 
-    async with websockets.connect('ws://localhost:8080/screen_offer') as websocket:
+    async with websockets.connect('ws://localhost:8000/screen_offer') as websocket:
         await websocket.send(json.dumps({
             "sdp": pc.localDescription.sdp,
             "type": pc.localDescription.type
         }))
-        # Bucle para escuchar reinicio o respuesta del servidor
         while True:
             response = await websocket.recv()
             answer = json.loads(response)
@@ -35,7 +41,6 @@ async def main():
                 await pc.setRemoteDescription(RTCSessionDescription(sdp=answer['sdp'], type=answer['type']))
             elif "action" in answer and answer["action"] == "restart":
                 print("Reiniciando emisor...")
-                # Reiniciar la conexión P2P
                 await pc.close()
                 return await main()
 
