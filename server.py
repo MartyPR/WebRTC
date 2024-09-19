@@ -86,7 +86,7 @@ async def signaling(websocket, path):
                     }))
                     print(f"Cliente conectado al emisor {emitter_id}")
                 else:
-                    print(f"No se encontró 'sdp' o 'emitter_id'. Parámetros: {params}")
+                    print(f"No se encontró 'sdp' o 'emitter_id'. Parámetros: ")
                 if "action" in params and params["action"] == "restart_emitter" and emitter_id:
                     print("part r")
                     if emitter_websocket.get(emitter_id):
@@ -100,30 +100,39 @@ async def on_shutdown(app):
     await asyncio.gather(*coros)
     pcs.clear()
 
-if __name__=="__main__":
+async def start_server():
+    # Configuración del servidor HTTP
     app = web.Application()
     app.router.add_get('/', index)
     app.on_shutdown.append(on_shutdown)
 
+    # Crear un AppRunner para el servidor HTTP
     web_runner = web.AppRunner(app)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(web_runner.setup())
+    await web_runner.setup()
     site = web.TCPSite(web_runner, '0.0.0.0', 5000)
-    loop.run_until_complete(site.start())
+    await site.start()
 
-    start_server = websockets.serve(signaling, "0.0.0.0", 8000)
-    loop.run_until_complete(start_server)
+    # Configuración del servidor WebSocket
+    websocket_server = websockets.serve(signaling, "0.0.0.0", 8000)
+    await websocket_server
 
     print("Servidor HTTP en http://0.0.0.0:5000")
     print("Servidor WebSocket en ws://0.0.0.0:8000")
 
-    loop.run_forever()
-    
+    # Esperar indefinidamente (sin necesidad de run_forever)
+    await asyncio.Future()  # Mantiene el loop corriendo
+
 if __name__ == "__main__":
     while True:
         try:
-            start_server()
+            asyncio.run(start_server())
         except Exception as e:
             print(f"El servidor falló con el error: {e}")
             print("Reiniciando en 5 segundos...")
+
+            # Cancelar todas las tareas pendientes
+            pending = asyncio.all_tasks()
+            for task in pending:
+                task.cancel()
+
             time.sleep(5)

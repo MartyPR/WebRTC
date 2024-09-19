@@ -183,6 +183,10 @@
             console.log("Mensaje no reconocido:", data);
           }
         };
+        ws.onclose = function() {
+          console.error("WebSocket cerrado, intentando reconectar...");
+          setTimeout(() => connectWebSocket(emitterId), 5000);  // Intento de reconexión
+        };
       }
       
       function start(emitterId) {
